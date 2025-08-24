@@ -1,362 +1,153 @@
 import * as SQLite from 'expo-sqlite';
 
-const db = SQLite.openDatabase('helphub.db');
+const db = SQLite.openDatabaseSync('helphub.db');
 
 const initDB = () => {
-  db.transaction(tx => {
-    tx.executeSql(
-      `CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT,
-        phone TEXT,
-        age INTEGER,
-        city TEXT,
-        email TEXT UNIQUE,
-        password TEXT,
-        role TEXT DEFAULT 'user'
-      );`,
-      [],
-      () => console.log('Users table created successfully'),
-      (_, error) => {
-        console.log('Error creating users table', error);
-        return false;
-      }
+  db.execSync(`
+    PRAGMA journal_mode = WAL;
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT,
+      phone TEXT,
+      age INTEGER,
+      city TEXT,
+      email TEXT UNIQUE,
+      password TEXT,
+      role TEXT DEFAULT 'user'
     );
-
-    tx.executeSql(
-      `CREATE TABLE IF NOT EXISTS volunteers (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT,
-        phone TEXT,
-        city TEXT,
-        email TEXT UNIQUE,
-        password TEXT,
-        status TEXT DEFAULT 'active'
-      );`,
-      [],
-      () => console.log('Volunteers table created successfully'),
-      (_, error) => {
-        console.log('Error creating volunteers table', error);
-        return false;
-      }
+    CREATE TABLE IF NOT EXISTS volunteers (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT,
+      phone TEXT,
+      city TEXT,
+      email TEXT UNIQUE,
+      password TEXT,
+      status TEXT DEFAULT 'active'
     );
-
-    tx.executeSql(
-      `CREATE TABLE IF NOT EXISTS reports (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        userId INTEGER,
-        description TEXT,
-        voicePath TEXT,
-        imagePath TEXT,
-        status TEXT DEFAULT 'pending',
-        assignedVolunteerId INTEGER,
-        createdAt TEXT,
-        updatedAt TEXT
-      );`,
-      [],
-      () => console.log('Reports table created successfully'),
-      (_, error) => {
-        console.log('Error creating reports table', error);
-        return false;
-      }
+    CREATE TABLE IF NOT EXISTS reports (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      userId INTEGER,
+      description TEXT,
+      voicePath TEXT,
+      imagePath TEXT,
+      status TEXT DEFAULT 'pending',
+      assignedVolunteerId INTEGER,
+      createdAt TEXT,
+      updatedAt TEXT
     );
-  });
+  `);
 };
 
-// User functions
 const registerUser = (name, phone, age, city, email, password) => {
-  return new Promise((resolve, reject) => {
-    db.transaction(tx => {
-      tx.executeSql(
-        'INSERT INTO users (name, phone, age, city, email, password) VALUES (?, ?, ?, ?, ?, ?)',
-        [name, phone, age, city, email, password],
-        (_, result) => resolve(result.insertId),
-        (_, error) => {
-          reject(error);
-          return false;
-        }
-      );
-    });
-  });
+  const result = db.runSync('INSERT INTO users (name, phone, age, city, email, password) VALUES (?, ?, ?, ?, ?, ?)', name, phone, age, city, email, password);
+  return result.lastInsertRowId;
 };
 
 const loginUser = (email, password) => {
-  return new Promise((resolve, reject) => {
-    db.transaction(tx => {
-      tx.executeSql(
-        'SELECT * FROM users WHERE email = ? AND password = ?',
-        [email, password],
-        (_, { rows }) => {
-          if (rows.length > 0) {
-            resolve(rows.item(0));
-          } else {
-            resolve(null);
-          }
-        },
-        (_, error) => {
-          reject(error);
-          return false;
-        }
-      );
-    });
-  });
+  const user = db.getFirstSync('SELECT * FROM users WHERE email = ? AND password = ?', email, password);
+  return user;
 };
 
-// Volunteer functions
 const registerVolunteer = (name, phone, city, email, password) => {
-  return new Promise((resolve, reject) => {
-    db.transaction(tx => {
-      tx.executeSql(
-        'INSERT INTO volunteers (name, phone, city, email, password) VALUES (?, ?, ?, ?, ?)',
-        [name, phone, city, email, password],
-        (_, result) => resolve(result.insertId),
-        (_, error) => {
-          reject(error);
-          return false;
-        }
-      );
-    });
-  });
+  const result = db.runSync('INSERT INTO volunteers (name, phone, city, email, password) VALUES (?, ?, ?, ?, ?)', name, phone, city, email, password);
+  return result.lastInsertRowId;
 };
 
 const loginVolunteer = (email, password) => {
-  return new Promise((resolve, reject) => {
-    db.transaction(tx => {
-      tx.executeSql(
-        'SELECT * FROM volunteers WHERE email = ? AND password = ?',
-        [email, password],
-        (_, { rows }) => {
-          if (rows.length > 0) {
-            resolve(rows.item(0));
-          } else {
-            resolve(null);
-          }
-        },
-        (_, error) => {
-          reject(error);
-          return false;
-        }
-      );
-    });
-  });
+  const volunteer = db.getFirstSync('SELECT * FROM volunteers WHERE email = ? AND password = ?', email, password);
+  return volunteer;
 };
 
-// Report functions
 const submitReport = (userId, description, voicePath, imagePath) => {
   const createdAt = new Date().toISOString();
-  return new Promise((resolve, reject) => {
-    db.transaction(tx => {
-      tx.executeSql(
-        'INSERT INTO reports (userId, description, voicePath, imagePath, status, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [userId, description, voicePath, imagePath, 'pending', createdAt, createdAt],
-        (_, result) => resolve(result.insertId),
-        (_, error) => {
-          reject(error);
-          return false;
-        }
-      );
-    });
-  });
+  const result = db.runSync('INSERT INTO reports (userId, description, voicePath, imagePath, status, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)', userId, description, voicePath, imagePath, 'pending', createdAt, createdAt);
+  return result.lastInsertRowId;
 };
 
 const submitAnonymousReport = (description, voicePath, imagePath) => {
   return submitReport(null, description, voicePath, imagePath);
 };
+
 const listReportsForUser = (userId) => {
-  return new Promise((resolve, reject) => {
-    db.transaction(tx => {
-      tx.executeSql(
-        'SELECT * FROM reports WHERE userId = ? ORDER BY createdAt DESC',
-        [userId],
-        (_, { rows }) => {
-          resolve(rows._array);
-        },
-        (_, error) => {
-          reject(error);
-          return false;
-        }
-      );
-    });
-  });
+  const reports = db.getAllSync('SELECT * FROM reports WHERE userId = ? ORDER BY createdAt DESC', userId);
+  return reports;
 };
+
 const listReportsForAdmin = () => {
-  return new Promise((resolve, reject) => {
-    db.transaction(tx => {
-      tx.executeSql(
-        'SELECT * FROM reports ORDER BY createdAt DESC',
-        [],
-        (_, { rows }) => {
-          resolve(rows._array);
-        },
-        (_, error) => {
-          reject(error);
-          return false;
-        }
-      );
-    });
-  });
+  const reports = db.getAllSync('SELECT * FROM reports ORDER BY createdAt DESC');
+  return reports;
 };
+
 const assignReport = (reportId, volunteerId) => {
   const updatedAt = new Date().toISOString();
-  return new Promise((resolve, reject) => {
-    db.transaction(tx => {
-      tx.executeSql(
-        'UPDATE reports SET assignedVolunteerId = ?, status = ?, updatedAt = ? WHERE id = ?',
-        [volunteerId, 'inProgress', updatedAt, reportId],
-        (_, { rowsAffected }) => {
-          if (rowsAffected > 0) {
-            resolve(true);
-          } else {
-            resolve(false);
-          }
-        },
-        (_, error) => {
-          reject(error);
-          return false;
-        }
-      );
-    });
-  });
+  const result = db.runSync('UPDATE reports SET assignedVolunteerId = ?, status = ?, updatedAt = ? WHERE id = ?', volunteerId, 'inProgress', updatedAt, reportId);
+  return result.changes > 0;
 };
+
 const listReportsForVolunteer = (volunteerId) => {
-  return new Promise((resolve, reject) => {
-    db.transaction(tx => {
-      tx.executeSql(
-        'SELECT * FROM reports WHERE assignedVolunteerId = ? ORDER BY updatedAt DESC',
-        [volunteerId],
-        (_, { rows }) => {
-          resolve(rows._array);
-        },
-        (_, error) => {
-          reject(error);
-          return false;
-        }
-      );
-    });
-  });
+  const reports = db.getAllSync('SELECT * FROM reports WHERE assignedVolunteerId = ? ORDER BY updatedAt DESC', volunteerId);
+  return reports;
 };
+
 const updateReportStatus = (reportId, status, imagePath = null) => {
   const updatedAt = new Date().toISOString();
-  return new Promise((resolve, reject) => {
-    db.transaction(tx => {
-      let query = 'UPDATE reports SET status = ?, updatedAt = ?';
-      const params = [status, updatedAt];
+  let query = 'UPDATE reports SET status = ?, updatedAt = ?';
+  const params = [status, updatedAt];
 
-      if (imagePath) {
-        query += ', imagePath = ?';
-        params.push(imagePath);
-      }
+  if (imagePath) {
+    query += ', imagePath = ?';
+    params.push(imagePath);
+  }
 
-      query += ' WHERE id = ?';
-      params.push(reportId);
+  query += ' WHERE id = ?';
+  params.push(reportId);
 
-      tx.executeSql(
-        query,
-        params,
-        (_, { rowsAffected }) => {
-          if (rowsAffected > 0) {
-            if (status === 'resolved') {
-              sendEmailNotification(reportId);
-            }
-            resolve(true);
-          } else {
-            resolve(false);
-          }
-        },
-        (_, error) => {
-          reject(error);
-          return false;
-        }
-      );
-    });
-  });
+  const result = db.runSync(query, ...params);
+  if (result.changes > 0 && status === 'resolved') {
+    sendEmailNotification(reportId);
+  }
+  return result.changes > 0;
 };
 
 const listAllVolunteers = () => {
-  return new Promise((resolve, reject) => {
-    db.transaction(tx => {
-      tx.executeSql(
-        'SELECT * FROM volunteers',
-        [],
-        (_, { rows }) => {
-          resolve(rows._array);
-        },
-        (_, error) => {
-          reject(error);
-          return false;
-        }
-      );
-    });
-  });
+  const volunteers = db.getAllSync('SELECT * FROM volunteers');
+  return volunteers;
 };
 
 const getUserById = (userId) => {
-  return new Promise((resolve, reject) => {
-    db.transaction(tx => {
-      tx.executeSql(
-        'SELECT * FROM users WHERE id = ?',
-        [userId],
-        (_, { rows }) => {
-          if (rows.length > 0) {
-            resolve(rows.item(0));
-          } else {
-            resolve(null);
-          }
-        },
-        (_, error) => {
-          reject(error);
-          return false;
-        }
-      );
-    });
-  });
-};
+  const user = db.getFirstSync('SELECT * FROM users WHERE id = ?', userId);
+  return user;
+}
 
-const sendEmailNotification = async (reportId) => {
-  try {
-    const report = await new Promise((resolve, reject) => {
-      db.transaction(tx => {
-        tx.executeSql('SELECT * FROM reports WHERE id = ?', [reportId], (_, { rows }) => {
-          if (rows.length > 0) resolve(rows.item(0));
-          else resolve(null);
-        }, (_, error) => {
-          reject(error);
-          return false;
-        });
-      });
-    });
+const sendEmailNotification = (reportId) => {
+  const report = db.getFirstSync('SELECT * FROM reports WHERE id = ?', reportId);
+  if (report && report.userId) {
+    const user = getUserById(report.userId);
+    if (user) {
+      console.log(`
+        ==================================================
+        SIMULATING SENDING EMAIL NOTIFICATION
+        ==================================================
+        TO: ${user.email}
+        SUBJECT: Your report has been resolved!
 
-    if (report && report.userId) {
-      const user = await getUserById(report.userId);
-      if (user) {
-        console.log(`
-          ==================================================
-          SIMULATING SENDING EMAIL NOTIFICATION
-          ==================================================
-          TO: ${user.email}
-          SUBJECT: Your report has been resolved!
+        Hi ${user.name},
 
-          Hi ${user.name},
+        We're happy to inform you that your report regarding:
+        "${report.description.substring(0, 50)}..."
+        has been successfully resolved.
 
-          We're happy to inform you that your report regarding:
-          "${report.description.substring(0, 50)}..."
-          has been successfully resolved.
+        Thank you for helping improve our community!
 
-          Thank you for helping improve our community!
-
-          Best,
-          The HelpHub Team
-          ==================================================
-        `);
-      }
+        Best,
+        The HelpHub Team
+        ==================================================
+      `);
     }
-  } catch (error) {
-    console.error('Failed to send email notification:', error);
   }
 };
 
 export {
-  db,
   initDB,
   registerUser,
   loginUser,

@@ -1,58 +1,73 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, Alert } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, Alert, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { ArrowLeft, Filter, UserPlus, Mail } from 'lucide-react-native';
-
-const mockReports = [
-  {
-    id: '1',
-    title: 'Broken streetlight on Main Street',
-    status: 'pending',
-    date: '2024-01-15',
-    location: 'Main Street, Downtown',
-    reporter: 'Anonymous',
-    priority: 'medium',
-  },
-  {
-    id: '2',
-    title: 'Pothole on Highway 101',
-    status: 'inProgress',
-    date: '2024-01-14',
-    location: 'Highway 101, Mile 15',
-    reporter: 'John Doe',
-    priority: 'high',
-  },
-  {
-    id: '3',
-    title: 'Garbage collection missed',
-    status: 'resolved',
-    date: '2024-01-13',
-    location: 'Residential Area, Block A',
-    reporter: 'Jane Smith',
-    priority: 'low',
-  },
-];
-
-const volunteers = ['Alex Johnson', 'Maria Garcia', 'David Chen', 'Sarah Wilson'];
+import { listReportsForAdmin, listAllVolunteers, assignReport } from '@/lib/database';
+import { useIsFocused } from '@react-navigation/native';
 
 export default function AdminReports() {
   const { t } = useLanguage();
   const [filter, setFilter] = useState('all');
+  const [reports, setReports] = useState([]);
+  const [volunteers, setVolunteers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const isFocused = useIsFocused();
 
-  const filteredReports = mockReports.filter(report => 
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [fetchedReports, fetchedVolunteers] = await Promise.all([
+        listReportsForAdmin(),
+        listAllVolunteers(),
+      ]);
+      setReports(fetchedReports);
+      setVolunteers(fetchedVolunteers);
+    } catch (error) {
+      console.error('Failed to fetch data:', error);
+      Alert.alert('Error', 'Failed to load data.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isFocused) {
+      fetchData();
+    }
+  }, [isFocused, fetchData]);
+
+  const filteredReports = reports.filter(report =>
     filter === 'all' || report.status === filter
   );
 
-  const assignVolunteer = (reportId: string) => {
+  const assignVolunteer = async (reportId: string) => {
+    const availableVolunteers = volunteers
+      .filter(v => v.status === 'active')
+      .map(v => ({
+        text: v.name,
+        onPress: async () => {
+          try {
+            await assignReport(reportId, v.id);
+            Alert.alert('Success', `Report assigned to ${v.name}`);
+            fetchData(); // Refresh list
+          } catch (error) {
+            console.error('Failed to assign report:', error);
+            Alert.alert('Error', 'Failed to assign report.');
+          }
+        },
+      }));
+
+    if (availableVolunteers.length === 0) {
+      Alert.alert(t('assignVolunteer'), 'No active volunteers available.');
+      return;
+    }
+
     Alert.alert(
       t('assignVolunteer'),
       'Select a volunteer:',
-      volunteers.map(volunteer => ({
-        text: volunteer,
-        onPress: () => Alert.alert('Success', `Assigned to ${volunteer}`)
-      })).concat([{ text: 'Cancel', style: 'cancel' }])
+      [...availableVolunteers, { text: 'Cancel', style: 'cancel' }]
     );
   };
 
@@ -60,17 +75,23 @@ export default function AdminReports() {
     Alert.alert('Email Sent', 'Notification email sent to reporter');
   };
 
-  const renderReport = ({ item }: { item: typeof mockReports[0] }) => (
+  const renderReport = ({ item }) => (
     <View style={styles.reportCard}>
       <View style={styles.reportHeader}>
-        <Text style={styles.reportTitle}>{item.title}</Text>
-        <View style={[styles.priorityBadge, { backgroundColor: getPriorityColor(item.priority) }]}>
-          <Text style={styles.priorityText}>{item.priority}</Text>
+        <Text style={styles.reportTitle}>{item.description}</Text>
+        <View style={[styles.priorityBadge, { backgroundColor: getStatusColor(item.status) }]}>
+          <Text style={styles.priorityText}>{item.status}</Text>
         </View>
       </View>
-      <Text style={styles.reportLocation}>{item.location}</Text>
-      <Text style={styles.reportReporter}>Reporter: {item.reporter}</Text>
-      <Text style={styles.reportDate}>{item.date}</Text>
+      <Text style={styles.reportReporter}>
+        Reporter ID: {item.userId ? item.userId : 'Anonymous'}
+      </Text>
+      <Text style={styles.reportDate}>
+        {new Date(item.createdAt).toLocaleString()}
+      </Text>
+      <Text style={styles.reportDate}>
+        Assigned to: {volunteers.find(v => v.id === item.assignedVolunteerId)?.name || 'Unassigned'}
+      </Text>
       
       <View style={styles.actionButtons}>
         <TouchableOpacity
@@ -91,14 +112,23 @@ export default function AdminReports() {
     </View>
   );
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'high': return '#e74c3c';
-      case 'medium': return '#f39c12';
-      case 'low': return '#27ae60';
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'pending': return '#f39c12';
+      case 'inProgress': return '#3498db';
+      case 'resolved': return '#27ae60';
       default: return '#95a5a6';
     }
   };
+
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.centered]}>
+        <ActivityIndicator size="large" color="#f093fb" />
+        <Text>Loading reports...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -129,9 +159,14 @@ export default function AdminReports() {
       <FlatList
         data={filteredReports}
         renderItem={renderReport}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item.id.toString()}
         contentContainerStyle={styles.listContainer}
         showsVerticalScrollIndicator={false}
+        ListEmptyComponent={() => (
+          <View style={styles.centered}>
+            <Text>No reports found for the selected filter.</Text>
+          </View>
+        )}
       />
     </View>
   );
@@ -264,5 +299,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#667eea',
     fontWeight: '500',
+  },
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
   },
 });

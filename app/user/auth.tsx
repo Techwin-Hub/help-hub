@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { ArrowLeft } from 'lucide-react-native';
+import { registerUser, loginUser } from '@/lib/database';
 
 export default function UserAuth() {
   const { t } = useLanguage();
@@ -17,26 +18,60 @@ export default function UserAuth() {
     email: '',
     password: '',
     confirmPassword: '',
-    username: '',
   });
+
+  const handleLogin = async () => {
+    if (!formData.email || !formData.password) {
+      Alert.alert('Error', 'Please fill all fields');
+      return;
+    }
+    try {
+      const user = await loginUser(formData.email, formData.password);
+      if (user) {
+        router.replace('/user/dashboard');
+      } else {
+        Alert.alert('Error', 'Invalid email or password');
+      }
+    } catch (error) {
+      console.error(error);
+      Alert.alert('Error', 'An error occurred during login');
+    }
+  };
+
+  const handleRegister = async () => {
+    if (!formData.name || !formData.phone || !formData.email || !formData.password) {
+      Alert.alert('Error', 'Please fill all required fields');
+      return;
+    }
+    if (formData.password !== formData.confirmPassword) {
+      Alert.alert('Error', 'Passwords do not match');
+      return;
+    }
+    try {
+      const newUserId = await registerUser(
+        formData.name,
+        formData.phone,
+        parseInt(formData.age, 10) || 0,
+        formData.city,
+        formData.email,
+        formData.password
+      );
+      if (newUserId) {
+        router.replace('/user/dashboard');
+      } else {
+        Alert.alert('Error', 'An error occurred during registration');
+      }
+    } catch (error) {
+      console.error(error);
+      Alert.alert('Error', 'An error occurred during registration');
+    }
+  };
 
   const handleSubmit = () => {
     if (isLogin) {
-      if (!formData.username || !formData.password) {
-        Alert.alert('Error', 'Please fill all fields');
-        return;
-      }
-      router.replace('/user/dashboard');
+      handleLogin();
     } else {
-      if (!formData.name || !formData.phone || !formData.email || !formData.password) {
-        Alert.alert('Error', 'Please fill all required fields');
-        return;
-      }
-      if (formData.password !== formData.confirmPassword) {
-        Alert.alert('Error', 'Passwords do not match');
-        return;
-      }
-      router.replace('/user/dashboard');
+      handleRegister();
     }
   };
 
@@ -83,26 +118,17 @@ export default function UserAuth() {
               style={styles.input}
               mode="outlined"
             />
-            <TextInput
-              label={t('email')}
-              value={formData.email}
-              onChangeText={(text) => setFormData({ ...formData, email: text })}
-              style={styles.input}
-              mode="outlined"
-              keyboardType="email-address"
-            />
           </>
         )}
 
-        {isLogin && (
-          <TextInput
-            label={t('username')}
-            value={formData.username}
-            onChangeText={(text) => setFormData({ ...formData, username: text })}
-            style={styles.input}
-            mode="outlined"
-          />
-        )}
+        <TextInput
+          label={t('email')}
+          value={formData.email}
+          onChangeText={(text) => setFormData({ ...formData, email: text })}
+          style={styles.input}
+          mode="outlined"
+          keyboardType="email-address"
+        />
 
         <TextInput
           label={t('password')}

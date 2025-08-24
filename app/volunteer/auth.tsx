@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { ArrowLeft, Heart, Upload } from 'lucide-react-native';
+import { registerVolunteer, loginVolunteer } from '@/lib/database';
 
 export default function VolunteerAuth() {
   const { t } = useLanguage();
@@ -13,23 +14,63 @@ export default function VolunteerAuth() {
     name: '',
     phone: '',
     city: '',
-    username: '',
+    email: '',
     password: '',
+    confirmPassword: '',
   });
+
+  const handleLogin = async () => {
+    if (!formData.email || !formData.password) {
+      Alert.alert('Error', 'Please fill all fields');
+      return;
+    }
+    try {
+      const volunteer = await loginVolunteer(formData.email, formData.password);
+      if (volunteer) {
+        router.replace('/volunteer/dashboard');
+      } else {
+        Alert.alert('Error', 'Invalid email or password');
+      }
+    } catch (error) {
+      console.error(error);
+      Alert.alert('Error', 'An error occurred during login');
+    }
+  };
+
+  const handleRegister = async () => {
+    if (!formData.name || !formData.phone || !formData.city || !formData.email || !formData.password) {
+      Alert.alert('Error', 'Please fill all required fields');
+      return;
+    }
+    if (formData.password !== formData.confirmPassword) {
+      Alert.alert('Error', 'Passwords do not match');
+      return;
+    }
+    try {
+      const newVolunteerId = await registerVolunteer(
+        formData.name,
+        formData.phone,
+        formData.city,
+        formData.email,
+        formData.password
+      );
+      if (newVolunteerId) {
+        router.replace('/volunteer/dashboard');
+      } else {
+        Alert.alert('Error', 'An error occurred during registration');
+      }
+    } catch (error) {
+      console.error(error);
+      Alert.alert('Error', 'An error occurred during registration');
+    }
+  };
 
   const handleSubmit = () => {
     if (isLogin) {
-      if (!formData.username || !formData.password) {
-        Alert.alert('Error', 'Please fill all fields');
-        return;
-      }
+      handleLogin();
     } else {
-      if (!formData.name || !formData.phone || !formData.city || !formData.password) {
-        Alert.alert('Error', 'Please fill all required fields');
-        return;
-      }
+      handleRegister();
     }
-    router.replace('/volunteer/dashboard');
   };
 
   const pickResume = () => {
@@ -72,6 +113,14 @@ export default function VolunteerAuth() {
               style={styles.input}
               mode="outlined"
             />
+            <TextInput
+              label={t('email')}
+              value={formData.email}
+              onChangeText={(text) => setFormData({ ...formData, email: text })}
+              style={styles.input}
+              mode="outlined"
+              keyboardType="email-address"
+            />
             <TouchableOpacity style={styles.resumeButton} onPress={pickResume}>
               <Upload size={20} color="#4facfe" />
               <Text style={styles.resumeButtonText}>{t('resume')} (Optional)</Text>
@@ -80,11 +129,12 @@ export default function VolunteerAuth() {
         )}
 
         <TextInput
-          label={t('username')}
-          value={formData.username}
-          onChangeText={(text) => setFormData({ ...formData, username: text })}
+          label={t('email')}
+          value={formData.email}
+          onChangeText={(text) => setFormData({ ...formData, email: text })}
           style={styles.input}
           mode="outlined"
+          keyboardType="email-address"
         />
 
         <TextInput
@@ -95,6 +145,17 @@ export default function VolunteerAuth() {
           mode="outlined"
           secureTextEntry
         />
+
+        {!isLogin && (
+          <TextInput
+            label={t('confirmPassword')}
+            value={formData.confirmPassword}
+            onChangeText={(text) => setFormData({ ...formData, confirmPassword: text })}
+            style={styles.input}
+            mode="outlined"
+            secureTextEntry
+          />
+        )}
 
         <Button
           mode="contained"

@@ -1,36 +1,31 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, FlatList } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { ArrowLeft, Clock, CircleCheck as CheckCircle, CircleAlert as AlertCircle } from 'lucide-react-native';
-
-const mockReports = [
-  {
-    id: '1',
-    title: 'Broken streetlight on Main Street',
-    status: 'pending',
-    date: '2024-01-15',
-    description: 'The streetlight near the bus stop is not working',
-  },
-  {
-    id: '2',
-    title: 'Pothole on Highway 101',
-    status: 'inProgress',
-    date: '2024-01-14',
-    description: 'Large pothole causing traffic issues',
-  },
-  {
-    id: '3',
-    title: 'Garbage collection missed',
-    status: 'resolved',
-    date: '2024-01-13',
-    description: 'Garbage not collected for 3 days in residential area',
-  },
-];
+import { listReportsForUser } from '@/lib/database';
 
 export default function MyReports() {
   const { t } = useLanguage();
+  const [reports, setReports] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchReports = async () => {
+      try {
+        // NOTE: Hardcoding userId to 1 for now.
+        const userReports = await listReportsForUser(1);
+        setReports(userReports);
+      } catch (error) {
+        console.error('Failed to fetch reports:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchReports();
+  }, []);
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -58,19 +53,29 @@ export default function MyReports() {
     }
   };
 
-  const renderReport = ({ item }: { item: typeof mockReports[0] }) => (
+  const renderReport = ({ item }) => (
     <View style={styles.reportCard}>
       <View style={styles.reportHeader}>
-        <Text style={styles.reportTitle}>{item.title}</Text>
+        <Text style={styles.reportTitle} numberOfLines={2}>{item.description}</Text>
         <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) }]}>
           {getStatusIcon(item.status)}
           <Text style={styles.statusText}>{t(item.status)}</Text>
         </View>
       </View>
-      <Text style={styles.reportDescription}>{item.description}</Text>
-      <Text style={styles.reportDate}>{item.date}</Text>
+      <Text style={styles.reportDate}>
+        {new Date(item.createdAt).toLocaleDateString()}
+      </Text>
     </View>
   );
+
+  if (loading) {
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" color="#667eea" />
+        <Text>Loading reports...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -82,11 +87,16 @@ export default function MyReports() {
       </LinearGradient>
 
       <FlatList
-        data={mockReports}
+        data={reports}
         renderItem={renderReport}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item.id.toString()}
         contentContainerStyle={styles.listContainer}
         showsVerticalScrollIndicator={false}
+        ListEmptyComponent={() => (
+          <View style={styles.centered}>
+            <Text>You have not submitted any reports yet.</Text>
+          </View>
+        )}
       />
     </View>
   );
@@ -163,5 +173,11 @@ const styles = StyleSheet.create({
   reportDate: {
     fontSize: 12,
     color: '#999',
+  },
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
   },
 });

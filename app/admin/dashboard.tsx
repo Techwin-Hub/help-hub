@@ -1,12 +1,38 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { FileText, Map, Users, ChartBar as BarChart3, LogOut } from 'lucide-react-native';
+import { listReportsForAdmin, listAllVolunteers } from '@/lib/database';
+import { useIsFocused } from '@react-navigation/native';
 
 export default function AdminDashboard() {
   const { t } = useLanguage();
+  const [stats, setStats] = useState({ totalReports: 0, pendingReports: 0, activeVolunteers: 0 });
+  const [loading, setLoading] = useState(true);
+  const isFocused = useIsFocused();
+
+  const fetchStats = useCallback(async () => {
+    setLoading(true);
+    try {
+      const reports = await listReportsForAdmin();
+      const volunteers = await listAllVolunteers();
+      const pendingReports = reports.filter(r => r.status === 'pending').length;
+      const activeVolunteers = volunteers.filter(v => v.status === 'active').length;
+      setStats({ totalReports: reports.length, pendingReports, activeVolunteers });
+    } catch (error) {
+      console.error('Failed to fetch stats:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isFocused) {
+      fetchStats();
+    }
+  }, [isFocused, fetchStats]);
 
   const menuItems = [
     {
@@ -50,20 +76,26 @@ export default function AdminDashboard() {
         </View>
       </LinearGradient>
 
-      <View style={styles.statsContainer}>
-        <View style={styles.statCard}>
-          <Text style={styles.statNumber}>24</Text>
-          <Text style={styles.statLabel}>Total Reports</Text>
+      {loading ? (
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color="#f093fb" />
         </View>
-        <View style={styles.statCard}>
-          <Text style={styles.statNumber}>8</Text>
-          <Text style={styles.statLabel}>Pending</Text>
+      ) : (
+        <View style={styles.statsContainer}>
+          <View style={styles.statCard}>
+            <Text style={styles.statNumber}>{stats.totalReports}</Text>
+            <Text style={styles.statLabel}>Total Reports</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statNumber}>{stats.pendingReports}</Text>
+            <Text style={styles.statLabel}>Pending</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statNumber}>{stats.activeVolunteers}</Text>
+            <Text style={styles.statLabel}>Active Volunteers</Text>
+          </View>
         </View>
-        <View style={styles.statCard}>
-          <Text style={styles.statNumber}>12</Text>
-          <Text style={styles.statLabel}>Active Volunteers</Text>
-        </View>
-      </View>
+      )}
 
       <View style={styles.menuContainer}>
         {menuItems.map((item, index) => (
@@ -166,5 +198,10 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     marginTop: 8,
     textAlign: 'center',
+  },
+  centered: {
+    padding: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

@@ -6,6 +6,7 @@ import { router } from 'expo-router';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { ArrowLeft, Camera, Mic, MapPin, Eye } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { submitReport } from '@/lib/database';
 
 export default function ReportIssue() {
   const { t } = useLanguage();
@@ -35,14 +36,22 @@ export default function ReportIssue() {
     }, 2000);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!description.trim()) {
       Alert.alert('Error', 'Please describe the issue');
       return;
     }
-    Alert.alert('Success', 'Report submitted successfully!', [
-      { text: 'OK', onPress: () => router.back() }
-    ]);
+    try {
+      // NOTE: Hardcoding userId to 1 for now.
+      // In a real app, you would get this from your auth context.
+      await submitReport(1, description, '', photo);
+      Alert.alert('Success', 'Report submitted successfully!', [
+        { text: 'OK', onPress: () => router.back() }
+      ]);
+    } catch (error) {
+      console.error(error);
+      Alert.alert('Error', 'An error occurred while submitting the report');
+    }
   };
 
   if (showPreview) {

@@ -4,9 +4,14 @@ import { StatusBar } from 'expo-status-bar';
 import { PaperProvider } from 'react-native-paper';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
+import { initDB } from '@/lib/database';
 
 export default function RootLayout() {
   useFrameworkReady();
+
+  useEffect(() => {
+    initDB();
+  }, []);
 
   return (
     <PaperProvider>

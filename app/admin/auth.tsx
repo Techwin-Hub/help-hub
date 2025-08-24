@@ -12,11 +12,11 @@ export default function AdminAuth() {
   const [password, setPassword] = useState('');
 
   const handleLogin = () => {
-    if (!username || !password) {
-      Alert.alert('Error', 'Please fill all fields');
-      return;
+    if (username === 'admin' && password === 'admin') {
+      router.replace('/admin/dashboard');
+    } else {
+      Alert.alert('Error', 'Invalid username or password');
     }
-    router.replace('/admin/dashboard');
   };
 
   return (

@@ -6,6 +6,7 @@ import { router } from 'expo-router';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { ArrowLeft, Camera, Mic, MapPin, FileText } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { submitAnonymousReport } from '@/lib/database';
 
 export default function AnonymousReport() {
   const { t } = useLanguage();
@@ -34,14 +35,20 @@ export default function AnonymousReport() {
     }, 2000);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!description.trim()) {
       Alert.alert('Error', 'Please describe the issue');
       return;
     }
-    Alert.alert('Success', 'Anonymous report submitted successfully!', [
-      { text: 'OK', onPress: () => router.replace('/home') }
-    ]);
+    try {
+      await submitAnonymousReport(description, '', photo);
+      Alert.alert('Success', 'Anonymous report submitted successfully!', [
+        { text: 'OK', onPress: () => router.replace('/home') }
+      ]);
+    } catch (error) {
+      console.error(error);
+      Alert.alert('Error', 'An error occurred while submitting the report');
+    }
   };
 
   return (

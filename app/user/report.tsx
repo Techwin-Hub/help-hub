@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Image } from 'react-native';
 import { TextInput, Button } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -6,6 +6,8 @@ import { router } from 'expo-router';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { ArrowLeft, Camera, Mic, MapPin, Eye } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
+import Voice from '@react-native-voice/voice';
 import { submitReport } from '@/lib/database';
 
 export default function ReportIssue() {
@@ -14,6 +16,21 @@ export default function ReportIssue() {
   const [photo, setPhoto] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [location, setLocation] = useState<Location.LocationObject | null>(null);
+  const [locationError, setLocationError] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        setLocationError('Permission to access location was denied');
+        return;
+      }
+
+      let location = await Location.getCurrentPositionAsync({});
+      setLocation(location);
+    })();
+  }, []);
 
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -28,12 +45,39 @@ export default function ReportIssue() {
     }
   };
 
-  const simulateVoiceRecording = () => {
-    setIsRecording(true);
-    setTimeout(() => {
-      setIsRecording(false);
-      Alert.alert('Voice Recording', 'Voice input recorded successfully!');
-    }, 2000);
+  useEffect(() => {
+    Voice.onSpeechStart = () => setIsRecording(true);
+    Voice.onSpeechEnd = () => setIsRecording(false);
+    Voice.onSpeechError = (e) => Alert.alert('Error', JSON.stringify(e.error));
+    Voice.onSpeechResults = (e) => {
+      if (e.value && e.value.length > 0) {
+        setDescription(prev => prev + e.value[0]);
+      }
+    };
+
+    return () => {
+      Voice.destroy().then(Voice.removeAllListeners);
+    };
+  }, []);
+
+  const startRecognizing = async () => {
+    try {
+      await Voice.start('en-US');
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const stopRecognizing = async () => {
+    try {
+      await Voice.stop();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleMicPress = () => {
+    isRecording ? stopRecognizing() : startRecognizing();
   };
 
   const handleSubmit = async () => {
@@ -81,7 +125,13 @@ export default function ReportIssue() {
             <Text style={styles.previewLabel}>{t('location')}:</Text>
             <View style={styles.locationPreview}>
               <MapPin size={20} color="#667eea" />
-              <Text style={styles.locationText}>Current Location (Mock)</Text>
+              <Text style={styles.locationText}>
+                {location
+                  ? `${location.coords.latitude.toFixed(2)}, ${location.coords.longitude.toFixed(2)}`
+                  : locationError
+                  ? locationError
+                  : 'Fetching location...'}
+              </Text>
             </View>
           </View>
 
@@ -126,12 +176,11 @@ export default function ReportIssue() {
 
           <TouchableOpacity
             style={[styles.mediaButton, isRecording && styles.recordingButton]}
-            onPress={simulateVoiceRecording}
-            disabled={isRecording}
+            onPress={handleMicPress}
           >
             <Mic size={24} color={isRecording ? "#ffffff" : "#667eea"} />
             <Text style={[styles.mediaButtonText, isRecording && styles.recordingText]}>
-              {isRecording ? 'Recording...' : t('voiceInput')}
+              {isRecording ? 'Stop Recording' : t('voiceInput')}
             </Text>
           </TouchableOpacity>
         </View>

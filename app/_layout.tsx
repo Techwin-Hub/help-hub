@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { PaperProvider } from 'react-native-paper';
@@ -6,13 +6,28 @@ import { LanguageProvider } from '@/contexts/LanguageContext';
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
 import { initDB } from '@/lib/database';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { View, ActivityIndicator, StyleSheet } from 'react-native';
 
 export default function RootLayout() {
   useFrameworkReady();
+  const [isDbReady, setIsDbReady] = useState(false);
 
   useEffect(() => {
-    initDB();
+    try {
+      initDB();
+      setIsDbReady(true);
+    } catch (e) {
+      console.error("Failed to initialize DB", e);
+    }
   }, []);
+
+  if (!isDbReady) {
+    return (
+      <View style={styles.container}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -34,3 +49,11 @@ export default function RootLayout() {
     </GestureHandlerRootView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+});

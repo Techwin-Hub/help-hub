@@ -5,7 +5,7 @@ import { router } from 'expo-router';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { FileText, Map, Users, ChartBar as BarChart3, LogOut } from 'lucide-react-native';
 import { listReportsForAdmin, listAllVolunteers } from '@/lib/database';
-import { useIsFocused } from '@react-navigation/native';
+import { useIsFocused } from 'expo-router';
 
 export default function AdminDashboard() {
   const { t } = useLanguage();

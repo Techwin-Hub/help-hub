@@ -5,7 +5,7 @@ import { router } from 'expo-router';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { LogOut, Check, Zap, Image as ImageIcon } from 'lucide-react-native';
 import { listReportsForVolunteer, updateReportStatus } from '@/lib/database';
-import { useIsFocused } from '@react-navigation/native';
+import { useIsFocused } from 'expo-router';
 
 export default function VolunteerDashboard() {
   const { t } = useLanguage();

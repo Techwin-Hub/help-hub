@@ -42,22 +42,24 @@ export default function MapViewScreen() {
             longitudeDelta: 1.5,
           }}
         >
-          {volunteers.map((volunteer) => (
-            <Marker
-              key={volunteer.id}
-              coordinate={{
-                latitude: volunteer.latitude,
-                longitude: volunteer.longitude,
-              }}
-              title={volunteer.name}
-            >
-              <View style={styles.marker}>
-                <Text style={styles.markerText}>
-                  {volunteer.name.charAt(0).toUpperCase()}
-                </Text>
-              </View>
-            </Marker>
-          ))}
+          {volunteers
+            .filter((v) => v.latitude && v.longitude)
+            .map((volunteer) => (
+              <Marker
+                key={volunteer.id}
+                coordinate={{
+                  latitude: volunteer.latitude,
+                  longitude: volunteer.longitude,
+                }}
+                title={volunteer.name}
+              >
+                <View style={styles.marker}>
+                  <Text style={styles.markerText}>
+                    {volunteer.name.charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+              </Marker>
+            ))}
         </MapView>
       )}
     </View>

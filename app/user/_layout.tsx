@@ -7,6 +7,7 @@ export default function UserLayout() {
       <Stack.Screen name="dashboard" />
       <Stack.Screen name="report" />
       <Stack.Screen name="reports" />
+      <Stack.Screen name="help" />
     </Stack>
   );
 }

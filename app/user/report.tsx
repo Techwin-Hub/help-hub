@@ -17,6 +17,7 @@ export default function ReportIssue() {
   const [isRecording, setIsRecording] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
+  const [address, setAddress] = useState<string | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -29,6 +30,14 @@ export default function ReportIssue() {
 
       let location = await Location.getCurrentPositionAsync({});
       setLocation(location);
+
+      if (location) {
+        let addressResult = await Location.reverseGeocodeAsync(location.coords);
+        if (addressResult.length > 0) {
+          const { city, region, country } = addressResult[0];
+          setAddress(`${city}, ${region}, ${country}`);
+        }
+      }
     })();
   }, []);
 
@@ -126,8 +135,8 @@ export default function ReportIssue() {
             <View style={styles.locationPreview}>
               <MapPin size={20} color="#667eea" />
               <Text style={styles.locationText}>
-                {location
-                  ? `${location.coords.latitude.toFixed(2)}, ${location.coords.longitude.toFixed(2)}`
+                {address
+                  ? address
                   : locationError
                   ? locationError
                   : 'Fetching location...'}

@@ -16,6 +16,7 @@ export default function AnonymousReport() {
   const [photo, setPhoto] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
+  const [address, setAddress] = useState<string | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -28,6 +29,14 @@ export default function AnonymousReport() {
 
       let location = await Location.getCurrentPositionAsync({});
       setLocation(location);
+
+      if (location) {
+        let addressResult = await Location.reverseGeocodeAsync(location.coords);
+        if (addressResult.length > 0) {
+          const { city, region, country } = addressResult[0];
+          setAddress(`${city}, ${region}, ${country}`);
+        }
+      }
     })();
   }, []);
 
@@ -110,8 +119,8 @@ export default function AnonymousReport() {
         <View style={styles.locationCard}>
           <MapPin size={20} color="#43e97b" />
           <Text style={styles.locationText}>
-            {location
-              ? `Location: ${location.coords.latitude.toFixed(2)}, ${location.coords.longitude.toFixed(2)}`
+            {address
+              ? `Location: ${address}`
               : locationError
               ? `Location Error: ${locationError}`
               : 'Fetching location...'}

@@ -148,6 +148,7 @@ const sendEmailNotification = (reportId) => {
 };
 
 export {
+  db,
   initDB,
   registerUser,
   loginUser,

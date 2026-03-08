@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Image, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Image, Platform, NativeModules } from 'react-native';
 import { TextInput, Button } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
@@ -55,7 +55,7 @@ export default function ReportIssue() {
   };
 
   useEffect(() => {
-    if (Platform.OS === 'web' || !Voice) return;
+    if (Platform.OS === 'web' || !Voice || !NativeModules.Voice) return;
 
     Voice.onSpeechStart = () => setIsRecording(true);
     Voice.onSpeechEnd = () => setIsRecording(false);
@@ -74,8 +74,11 @@ export default function ReportIssue() {
   }, []);
 
   const startRecognizing = async () => {
-    if (Platform.OS === 'web' || !Voice || typeof Voice.start !== 'function') {
-      Alert.alert('Voice not available on this platform');
+    if (Platform.OS === 'web' || !Voice || typeof Voice.start !== 'function' || !NativeModules.Voice) {
+      Alert.alert(
+        'Voice Input Unavailable',
+        'Voice recognition is not supported on this device or environment (e.g., Expo Go or simulators). Please use manual text input.'
+      );
       return;
     }
     try {

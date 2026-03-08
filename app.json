@@ -24,7 +24,8 @@
       [
         "@react-native-voice/voice",
         {
-          "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone."
+          "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone.",
+          "speechRecognitionPermission": "Allow $(PRODUCT_NAME) to securely recognize user speech."
         }
       ]
     ],

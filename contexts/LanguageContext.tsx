@@ -13,7 +13,7 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 const translations = {
   en: {
     appName: 'HelpHub',
-    subtitle: 'An AI-Powered Civic Reporting and Welfare Response System',
+    subtitle: 'Civic Reporting and Welfare Response System',
     selectLanguage: 'Select Language',
     english: 'English',
     tamil: 'Tamil',

@@ -6,7 +6,7 @@ import { router } from 'expo-router';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { ArrowLeft, Filter, UserPlus, Mail } from 'lucide-react-native';
 import { listReportsForAdmin, listAllVolunteers, assignReport } from '@/lib/database';
-import { useIsFocused } from 'expo-router';
+import { useIsFocused } from '@react-navigation/native';
 
 export default function AdminReports() {
   const { t } = useLanguage();

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
-import { router, useIsFocused } from 'expo-router';
+import { router } from 'expo-router';
+import { useIsFocused } from '@react-navigation/native';
 import { ArrowLeft, Edit, Trash2 } from 'lucide-react-native';
 import { listAllVolunteers, deleteVolunteer } from '@/lib/database';
 import { Volunteer } from '@/data/mockData';

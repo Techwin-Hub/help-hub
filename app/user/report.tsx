@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Image, Platform } from 'react-native';
 import { TextInput, Button } from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
@@ -55,6 +55,8 @@ export default function ReportIssue() {
   };
 
   useEffect(() => {
+    if (Platform.OS === 'web' || !Voice) return;
+
     Voice.onSpeechStart = () => setIsRecording(true);
     Voice.onSpeechEnd = () => setIsRecording(false);
     Voice.onSpeechError = (e) => Alert.alert('Error', JSON.stringify(e.error));
@@ -65,19 +67,27 @@ export default function ReportIssue() {
     };
 
     return () => {
-      Voice.destroy().then(Voice.removeAllListeners);
+      if (Voice && typeof Voice.destroy === 'function') {
+        Voice.destroy().then(Voice.removeAllListeners);
+      }
     };
   }, []);
 
   const startRecognizing = async () => {
+    if (Platform.OS === 'web' || !Voice || typeof Voice.start !== 'function') {
+      Alert.alert('Voice not available on this platform');
+      return;
+    }
     try {
       await Voice.start('en-US');
     } catch (e) {
       console.error(e);
+      Alert.alert('Error', 'Voice start failed');
     }
   };
 
   const stopRecognizing = async () => {
+    if (!Voice || typeof Voice.stop !== 'function') return;
     try {
       await Voice.stop();
     } catch (e) {

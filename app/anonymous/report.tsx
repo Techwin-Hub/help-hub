@@ -7,14 +7,22 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { ArrowLeft, Camera, Mic, MapPin, FileText } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
-import Voice from '@react-native-voice/voice';
+import { useVoiceToText } from '@/hooks/useVoiceToText';
 import { submitAnonymousReport } from '@/lib/database';
 
 export default function AnonymousReport() {
   const { t } = useLanguage();
   const [description, setDescription] = useState('');
   const [photo, setPhoto] = useState<string | null>(null);
-  const [isRecording, setIsRecording] = useState(false);
+  const { 
+    isRecording, 
+    partialTranscript, 
+    finalTranscript, 
+    error: voiceError, 
+    startListening, 
+    stopListening, 
+    isAvailable: isVoiceAvailable 
+  } = useVoiceToText();
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
   const [address, setAddress] = useState<string | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
@@ -54,51 +62,26 @@ export default function AnonymousReport() {
   };
 
   useEffect(() => {
-    if (Platform.OS === 'web' || !Voice || !NativeModules.Voice) return;
+    if (finalTranscript) {
+      setDescription(prev => (prev ? `${prev} ${finalTranscript}` : finalTranscript));
+    }
+  }, [finalTranscript]);
 
-    Voice.onSpeechStart = () => setIsRecording(true);
-    Voice.onSpeechEnd = () => setIsRecording(false);
-    Voice.onSpeechError = (e) => Alert.alert('Error', JSON.stringify(e.error));
-    Voice.onSpeechResults = (e) => {
-      if (e.value && e.value.length > 0) {
-        setDescription(prev => prev + e.value[0]);
-      }
-    };
+  useEffect(() => {
+    if (voiceError) {
+      Alert.alert('Voice Error', voiceError);
+    }
+  }, [voiceError]);
 
-    return () => {
-      if (Voice && typeof Voice.destroy === 'function') {
-        Voice.destroy().then(Voice.removeAllListeners);
-      }
-    };
-  }, []);
-
-  const startRecognizing = async () => {
-    if (Platform.OS === 'web' || !Voice || typeof Voice.start !== 'function' || !NativeModules.Voice) {
+  const handleMicPress = () => {
+    if (!isVoiceAvailable) {
       Alert.alert(
         'Voice Input Unavailable',
         'Voice recognition is not supported on this device or environment (e.g., Expo Go or simulators). Please use manual text input.'
       );
       return;
     }
-    try {
-      await Voice.start('en-US');
-    } catch (e) {
-      console.error(e);
-      Alert.alert('Error', 'Voice start failed');
-    }
-  };
-
-  const stopRecognizing = async () => {
-    if (!Voice || typeof Voice.stop !== 'function') return;
-    try {
-      await Voice.stop();
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  const handleMicPress = () => {
-    isRecording ? stopRecognizing() : startRecognizing();
+    isRecording ? stopListening() : startListening();
   };
 
   const handleSubmit = async () => {
@@ -142,7 +125,7 @@ export default function AnonymousReport() {
 
         <TextInput
           label={t('textInput')}
-          value={description}
+          value={isRecording && partialTranscript ? (description ? `${description} ${partialTranscript}` : partialTranscript) : description}
           onChangeText={setDescription}
           style={styles.textInput}
           mode="outlined"
